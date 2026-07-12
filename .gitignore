@@ -1,0 +1,21 @@
+# Virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Local configuration / secrets
+.env
+
+# Large datasets & scratch scripts
+data/
+scratch/
+
+# Large model checkpoints (do not commit to Git)
+ingestion/roberta-base/
+ingestion/bert-base-uncased/
+ingestion/distilbert-base-uncased/
+
+# Node modules & frontend builds
+frontend/node_modules/
+frontend/dist/
+.eslintcache
