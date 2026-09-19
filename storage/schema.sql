@@ -8,12 +8,17 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE TABLE IF NOT EXISTS articles (
     id SERIAL PRIMARY KEY,
     event_id INT REFERENCES events(id) ON DELETE CASCADE,
-    source TEXT NOT NULL,          -- e.g. 'fox', 'huffpost', 'nyt'
+    source TEXT NOT NULL,          -- e.g. 'fox', 'huffpost', 'nyt', or a live outlet name
     url TEXT,
     raw_text TEXT,
-    clean_text TEXT
+    clean_text TEXT,
+    lean TEXT                      -- live ingestion: left/center/right/unknown; NULL for BASIL
 );
 CREATE INDEX IF NOT EXISTS idx_articles_event_id ON articles(event_id);
+
+-- Added after the initial release for the live-ingestion path; ADD COLUMN
+-- IF NOT EXISTS keeps init_schema() idempotent on pre-existing databases.
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS lean TEXT;
 
 CREATE TABLE IF NOT EXISTS entity_mentions (
     id SERIAL PRIMARY KEY,

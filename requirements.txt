@@ -18,6 +18,12 @@ rapidfuzz==3.9.4
 keybert==0.8.5
 scikit-learn==1.5.0
 readability-lxml==0.8.1
+requests==2.32.3
+
+# --- Live ingestion (Phase 1) ---
+# GDELT Doc 2.0 API needs no key; requests fetches both the GDELT query and
+# each article's HTML, which readability-lxml then reduces to body text.
+lxml==5.2.2
 
 # --- Dev / eval ---
 pytest==8.2.2

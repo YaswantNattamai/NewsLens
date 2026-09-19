@@ -8,10 +8,10 @@ export default function DatelineStrip({ eventLabel, articles, sourceColors }) {
         {articles.map((a) =>
           a.url ? (
             <a key={a.id} href={a.url} target="_blank" rel="noreferrer">
-              <SourceStamp source={a.source} color={sourceColors[a.source]} />
+              <SourceStamp source={a.source} color={sourceColors[a.source]} lean={a.lean} />
             </a>
           ) : (
-            <SourceStamp key={a.id} source={a.source} color={sourceColors[a.source]} />
+            <SourceStamp key={a.id} source={a.source} color={sourceColors[a.source]} lean={a.lean} />
           )
         )}
       </div>

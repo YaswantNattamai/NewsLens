@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api.js";
 import { assignSourceColors } from "./sourceColors.js";
 import EventPicker from "./components/EventPicker.jsx";
+import MethodologyNote from "./components/MethodologyNote.jsx";
 import DatelineStrip from "./components/DatelineStrip.jsx";
 import EntityTable from "./components/EntityTable.jsx";
 import SentimentChart from "./components/SentimentChart.jsx";
@@ -73,15 +74,25 @@ export default function App() {
 
       {data && status === "idle" && (
         <>
+          <MethodologyNote />
+
           <DatelineStrip
             eventLabel={eventLabel}
             articles={data.articles}
             sourceColors={sourceColors}
           />
 
+          <p className="source-count-note">
+            Comparing <strong>{sources.length}</strong>{" "}
+            {sources.length === 1 ? "source" : "sources"}
+            {sources.length <= 2
+              ? " — few sources means a weaker signal; read the caveats above."
+              : " — more comparable coverage strengthens every signal below."}
+          </p>
+
           <Section
             title="Raw Articles"
-            description="The original news text reported by the three sources side-by-side."
+            description="The original news text reported by each source, side-by-side."
           >
             <ArticleReader articles={data.articles} sourceColors={sourceColors} />
           </Section>
@@ -95,21 +106,21 @@ export default function App() {
 
           <Section
             title="Sentiment"
-            description="Average tone toward each entity, per source. Diverges from 0 at center."
+            description="Automated estimate of each source's tone toward an entity — a model guess, not a fact; it can misread quotes and sarcasm. Diverges from 0 at center."
           >
             <SentimentChart rows={data.sentiment} sources={sources} sourceColors={sourceColors} />
           </Section>
 
           <Section
             title="Framing"
-            description="How differently each pair describes the same details — a lower bound, not a full measure. Click a pair."
+            description="How differently each pair phrases their most similar sentences — a lower bound on divergence, only weakly tied to human bias labels. Not a verdict. Click a pair."
           >
             <FramingPanel rows={data.framing} sourceColors={sourceColors} />
           </Section>
 
           <Section
             title="Omission"
-            description="Share of event-wide entity importance each source leaves out. Click a source."
+            description="Share of the entity importance in THIS set of sources that each one doesn't mention — relative to the others shown, not a claim of deliberate suppression. Click a source."
           >
             <OmissionPanel rows={data.omission} sourceColors={sourceColors} />
           </Section>
@@ -132,7 +143,8 @@ export default function App() {
 
       {!data && status === "idle" && (
         <p className="empty-state">
-          Pick a BASIL event above to load and analyze it, or open one you've already run.
+          Type a live topic above to gather how different outlets are covering it right now — or
+          pick a curated BASIL event, or reopen one you've already run.
         </p>
       )}
     </div>

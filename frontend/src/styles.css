@@ -166,6 +166,134 @@ button {
   cursor: default;
 }
 
+/* --- live topic search (Phase 1) --- */
+
+.live-picker {
+  margin-bottom: 10px;
+}
+
+.live-search {
+  flex: 1 1 340px;
+  min-width: 220px;
+}
+
+.live-search::placeholder {
+  color: var(--ink-soft);
+}
+
+/* --- coarse political-lean badge on a source stamp --- */
+
+.lean-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--paper);
+}
+
+.lean-left {
+  background: #2b6cb0;
+}
+.lean-center {
+  background: #6b7280;
+}
+.lean-right {
+  background: #b02b2b;
+}
+
+/* --- trust / methodology banner (Phase 2) --- */
+
+.methodology {
+  border: 1.5px solid var(--wire-blue);
+  border-radius: var(--radius);
+  background: var(--wire-blue-soft);
+  margin: 18px 0 10px;
+}
+
+.methodology-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-body);
+}
+
+.methodology-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--wire-blue);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.methodology-tagline {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.methodology-toggle {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--wire-blue);
+  line-height: 1;
+}
+
+.methodology-body {
+  padding: 0 16px 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.methodology-body ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.methodology-body li {
+  margin-bottom: 7px;
+}
+
+/* --- source-count confidence line --- */
+
+.source-count-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin: 8px 0 4px;
+}
+
+/* --- per-pair framing confidence note --- */
+
+.confidence-note {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+.confidence-note.low {
+  color: var(--redline);
+}
+
 .picker-note {
   font-family: var(--font-mono);
   font-size: 11px;

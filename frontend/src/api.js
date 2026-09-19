@@ -20,6 +20,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ basil_event_id: basilEventId }),
     }),
+  liveEvent: (query, refresh = false) =>
+    request("/live-events", {
+      method: "POST",
+      body: JSON.stringify({ query, refresh }),
+    }),
   articles: (eventId) => request(`/events/${eventId}/articles`),
   entities: (eventId) => request(`/events/${eventId}/entities`),
   sentiment: (eventId) => request(`/events/${eventId}/sentiment`),

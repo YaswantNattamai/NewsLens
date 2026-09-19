@@ -6,7 +6,8 @@ export default function EventPicker({ onEventReady }) {
   const [loadedEvents, setLoadedEvents] = useState([]);
   const [selectedBasilId, setSelectedBasilId] = useState("");
   const [selectedLoadedId, setSelectedLoadedId] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | loading | error
+  const [liveQuery, setLiveQuery] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | loading | live | error
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
@@ -41,8 +42,40 @@ export default function EventPicker({ onEventReady }) {
     onEventReady(Number(selectedLoadedId));
   }
 
+  async function handleLiveSearch(e) {
+    e?.preventDefault();
+    const q = liveQuery.trim();
+    if (!q) return;
+    setStatus("live");
+    setErrorMsg("");
+    try {
+      const result = await api.liveEvent(q);
+      const refreshed = await api.loadedEvents();
+      setLoadedEvents(refreshed || []);
+      setStatus("idle");
+      onEventReady(result.event_id);
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err.message);
+    }
+  }
+
   return (
     <div>
+      <form className="picker live-picker" onSubmit={handleLiveSearch}>
+        <input
+          type="text"
+          className="live-search"
+          placeholder="Analyze a live topic — e.g. “interest rate decision”"
+          value={liveQuery}
+          onChange={(e) => setLiveQuery(e.target.value)}
+          disabled={status === "live"}
+        />
+        <button type="submit" disabled={!liveQuery.trim() || status === "live"}>
+          {status === "live" ? "Gathering coverage…" : "Analyze live"}
+        </button>
+      </form>
+
       <div className="picker">
         <select
           value={selectedLoadedId}
@@ -85,6 +118,12 @@ export default function EventPicker({ onEventReady }) {
         <p className="picker-note">
           Running NER, sentiment, framing alignment, and omission scoring — first run for an
           event can take a minute or two while models load.
+        </p>
+      )}
+      {status === "live" && (
+        <p className="picker-note">
+          Searching recent coverage via GDELT, fetching each outlet's article, then running the
+          full analysis — this can take 30–60s. Wire-copy duplicates are removed automatically.
         </p>
       )}
       {status === "error" && <p className="picker-note error-state">{errorMsg}</p>}

@@ -13,6 +13,10 @@ export default function FramingPanel({ rows, sourceColors }) {
         const isOpen = openKey === key;
         const hasScore = r.framing_score !== null && r.framing_score !== undefined;
         const pct = hasScore ? Math.round(r.framing_score * 100) : null;
+        // The score is only as trustworthy as the number of comparable sentence
+        // pairs behind it. A handful of aligned pairs is a fragile estimate.
+        const nPairs = r.aligned_pairs ? r.aligned_pairs.length : 0;
+        const lowConfidence = hasScore && nPairs < 5;
 
         return (
           <div className="pair-card" key={key}>
@@ -32,6 +36,13 @@ export default function FramingPanel({ rows, sourceColors }) {
                 <span className="score-label">
                   {hasScore ? "divergence (lower bound)" : "not comparable"}
                 </span>
+                {hasScore && (
+                  <span className={`confidence-note${lowConfidence ? " low" : ""}`}>
+                    {lowConfidence
+                      ? `low confidence · ${nPairs} pair${nPairs === 1 ? "" : "s"}`
+                      : `${nPairs} aligned pairs`}
+                  </span>
+                )}
               </div>
             </button>
 

@@ -90,17 +90,36 @@ frontend will always show an empty state — that's expected, not a bug.
 | `GET /events/{id}/omission` | `bias_scores` table (entity + topic-overlap columns) | yes |
 | `GET /events/{id}/bias` | `sentence_bias_predictions` table | **only if `BIAS_MODEL_DIR` was set when the event was analyzed** |
 
+## Live ingestion (Phase 1) — now built
+
+Alongside the BASIL path, the app can now assemble an event from **live news**:
+
+```
+user types a topic  →  POST /live-events {query}
+        │
+        ▼
+ingestion/live_loader.py   queries GDELT Doc 2.0 (no API key), collapses to one
+        │                  article per outlet, extracts body text with
+        │                  readability-lxml, drops syndicated wire copy via
+        │                  MiniLM similarity, tags each source's political lean
+        ▼                  (ingestion/sources.py)
+same events/articles tables  →  same analyze_event() pipeline, unchanged
+```
+
+Results are cached per query for 6h (`LIVE_CACHE_TTL_HOURS`) so repeat searches
+are instant; `refresh: true` forces a re-fetch. Sources carry a coarse
+left/center/right `lean` (shown as a badge in the dateline) drawn from a curated
+domain registry — orientation only, **not** a ground-truth bias claim.
+
 ## What's genuinely NOT built yet
 
-- **Live ingestion** (GDELT / NewsAPI / Google News RSS) — section 4.3 in the
-  spec, explicitly lowest priority there too. The app only works with
-  pre-loaded BASIL events; there's no "search a live topic" path.
-- **Narrative clustering** (section 6.8) — the `ClusterView` component and
-  the KMeans clustering logic don't exist yet.
-- **Evaluation scripts** (section 7) — correlating the framing score against
-  BASIL's human bias-span labels, manual omission labeling, adjusted Rand
-  index for clustering. None of this is automated; you'd do it by hand or
-  write a notebook against the data already sitting in Postgres.
+- **NewsAPI / Google News RSS** ingestion — only GDELT is wired in so far;
+  these would add coverage/recency but need API keys.
+- **Evaluation scripts** (section 7) — the framing metric now HAS an automated
+  validation (`scripts/evaluate_framing.py`, see the framing caveat below);
+  still missing: manual omission labeling and the adjusted Rand index for
+  clustering. Those you'd do by hand or in a notebook against the data in
+  Postgres.
 
 ## Known rough edges worth knowing about
 
@@ -110,7 +129,12 @@ frontend will always show an empty state — that's expected, not a bug.
 - **Framing score is a lower bound**, not a complete framing measure — it
   only tells you how different the *most similar* sentence pair is, not the
   overall framing gap. This is by design, not a bug, but it's easy to
-  over-read the number if you forget the caveat.
+  over-read the number if you forget the caveat. **Validated** against BASIL's
+  human bias spans (`scripts/evaluate_framing.py`, all 100 events, 4,311
+  aligned pairs): divergence predicts a human-flagged sentence with
+  **ROC AUC ≈ 0.56, point-biserial r ≈ 0.10** — i.e. a *weak* signal, leaning
+  the right way but close to chance. The frontend's trust banner states this;
+  present the number as "phrasing differs," never as a bias verdict.
 - **Omission and topic-overlap scores are computed once per source** (relative
   to the whole event) but stored on every pairwise row that source appears
   in `bias_scores` — the frontend's `OmissionPanel` collapses this back down

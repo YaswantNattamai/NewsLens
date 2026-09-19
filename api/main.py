@@ -9,10 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from ingestion.basil_loader import load_event, list_event_ids
+from ingestion.live_loader import fetch_live_event, LiveIngestError
 from preprocessing.clean import to_sentences  # noqa: F401  (used indirectly via pipeline)
 from analysis.pipeline import analyze_event
 from analysis.clustering import cluster_event_sentences
 from storage.db import get_conn, init_schema
+
+# How long a live query's cached analysis stays fresh before a repeat query
+# re-fetches from GDELT. Live fetching is slow (many outbound HTTP fetches) and
+# a story's coverage doesn't shift minute-to-minute, so we serve the cached
+# event within this window unless the caller explicitly asks to refresh.
+LIVE_CACHE_TTL_HOURS = 6
 
 app = FastAPI(title="NewsLens API")
 
@@ -57,13 +64,85 @@ def register_event(req: RegisterEventRequest):
 
         for art in articles:
             conn.execute(
-                """INSERT INTO articles (event_id, source, url, raw_text, clean_text)
-                   VALUES (%s, %s, %s, %s, %s)""",
-                (event_id, art.source, art.url, art.raw_text, art.raw_text),
+                """INSERT INTO articles (event_id, source, url, raw_text, clean_text, lean)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (event_id, art.source, art.url, art.raw_text, art.raw_text, None),
             )
 
     analyze_event(event_id)
     return {"event_id": event_id, "sources": [a.source for a in articles]}
+
+
+class LiveEventRequest(BaseModel):
+    query: str
+    max_sources: int = 10
+    refresh: bool = False  # bypass the cache and re-fetch from GDELT
+
+
+@app.post("/live-events")
+def register_live_event(req: LiveEventRequest):
+    """
+    Assemble a live multi-source event from GDELT for a free-text topic, run
+    the full analysis pipeline on it, and return its event id.
+
+    Cached: repeat queries within LIVE_CACHE_TTL_HOURS return the already-
+    analyzed event instantly instead of re-fetching, unless `refresh` is set.
+    """
+    query = (req.query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query must not be empty.")
+
+    # Namespaced so live events never collide with BASIL ids in source_event_id.
+    source_event_id = f"live:{query.lower()}"
+
+    # --- cache hit? ---
+    if not req.refresh:
+        with get_conn() as conn:
+            cached = conn.execute(
+                """SELECT id FROM events
+                   WHERE source_event_id = %s
+                     AND created_at > now() - make_interval(hours => %s)""",
+                (source_event_id, LIVE_CACHE_TTL_HOURS),
+            ).fetchone()
+        if cached:
+            return {"event_id": cached["id"], "cached": True}
+
+    # --- fetch live coverage ---
+    try:
+        articles = fetch_live_event(query, max_sources=req.max_sources)
+    except LiveIngestError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:  # network / parsing surprises shouldn't 500 opaquely
+        raise HTTPException(status_code=502, detail=f"Live ingestion failed: {e}")
+
+    with get_conn() as conn:
+        row = conn.execute(
+            """INSERT INTO events (topic, source_event_id)
+               VALUES (%s, %s)
+               ON CONFLICT (source_event_id)
+               DO UPDATE SET topic = EXCLUDED.topic, created_at = now()
+               RETURNING id""",
+            (query, source_event_id),
+        ).fetchone()
+        event_id = row["id"]
+
+        # Re-analyzing a cached-but-stale query: clear its prior rows first.
+        conn.execute("DELETE FROM articles WHERE event_id = %s", (event_id,))
+        conn.execute("DELETE FROM bias_scores WHERE event_id = %s", (event_id,))
+
+        for art in articles:
+            conn.execute(
+                """INSERT INTO articles (event_id, source, url, raw_text, clean_text, lean)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (event_id, art.source, art.url, art.raw_text, art.raw_text, art.lean),
+            )
+
+    analyze_event(event_id)
+    return {
+        "event_id": event_id,
+        "cached": False,
+        "sources": [{"source": a.source, "lean": a.lean, "url": a.url} for a in articles],
+    }
 
 
 @app.get("/basil-events")
@@ -86,7 +165,7 @@ def list_loaded_events():
 def get_articles(event_id: int):
     with get_conn() as conn:
         rows = conn.execute(
-            """SELECT a.id, a.source, a.url, a.raw_text, e.topic AS event_topic
+            """SELECT a.id, a.source, a.url, a.raw_text, a.lean, e.topic AS event_topic
                FROM articles a JOIN events e ON e.id = a.event_id
                WHERE a.event_id = %s""", (event_id,)
         ).fetchall()
